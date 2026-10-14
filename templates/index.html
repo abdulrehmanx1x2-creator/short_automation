@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="ur" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shorts Automation</title>
+<style>
+:root{font-family:system-ui,-apple-system,Segoe UI,sans-serif;color:#e9eef8;background:#0b1020}
+*{box-sizing:border-box}body{margin:0}header{padding:22px max(18px,calc((100% - 1100px)/2));background:#111a2f;border-bottom:1px solid #273451}
+main{max-width:1100px;margin:auto;padding:20px;display:grid;gap:18px}.card{background:#121b30;border:1px solid #283653;border-radius:16px;padding:18px}
+h1{margin:0;font-size:1.5rem}h2{font-size:1.12rem;margin-top:0}.muted{color:#a9b7d0;font-size:.92rem}
+button,.button{border:0;border-radius:10px;background:#6b8cff;color:#071127;padding:11px 15px;font-weight:700;cursor:pointer;text-decoration:none;display:inline-block}
+input,select,textarea{width:100%;padding:11px;margin:6px 0 12px;background:#0b1224;color:#eef;border:1px solid #344361;border-radius:9px}
+label{font-size:.92rem;color:#d9e4f8}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+table{width:100%;border-collapse:collapse;font-size:.9rem}td,th{text-align:right;padding:10px;border-bottom:1px solid #283653;vertical-align:top}video{width:100%;max-height:420px;background:#000;border-radius:10px}
+.tag{display:inline-block;padding:4px 8px;background:#273653;border-radius:20px;font-size:.8rem}.good{color:#72e4b3}.bad{color:#ffb2a8}
+@media(max-width:700px){.grid{grid-template-columns:1fr}main{padding:12px}.card{padding:14px}header{padding:18px}}
+</style>
+</head>
+<body>
+<header><h1>🎬 All-in-One Shorts Automation</h1><div class="muted">موبائل، لیپ ٹاپ اور کمپیوٹر کے لیے ایک ہی ڈیش بورڈ</div></header>
+<main>
+<section class="card">
+<h2>1) YouTube چینل کنیکٹ کریں</h2>
+<p class="muted">Google OAuth کے ذریعے اجازت دیں۔ ہر الگ چینل/اکاؤنٹ کے لیے دوبارہ connect کریں۔</p>
+<a class="button" href="/oauth/connect">YouTube چینل شامل کریں</a>
+<p class="muted">FFmpeg status:
+{% if ffmpeg %}<span class="good">تیار</span>{% else %}<span class="bad">FFmpeg انسٹال نہیں</span>{% endif %}</p>
+{% if channels %}
+<div style="overflow:auto"><table><thead><tr><th>چینل</th><th>Channel ID</th><th>تاریخ</th></tr></thead><tbody>
+{% for c in channels %}<tr><td>{{ c["label"] }}</td><td>{{ c["id"] }}</td><td>{{ c["created_at"][:10] }}</td></tr>{% endfor %}
+</tbody></table></div>
+{% else %}<p class="muted">ابھی کوئی چینل منسلک نہیں۔</p>{% endif %}
+</section>
+
+<section class="card">
+<h2>2) موضوع لکھ کر خودکار تصاویر حاصل کریں</h2>
+<p class="muted">مثلاً Islamic، Ronaldo یا Nature۔ ایپ Pexels کی API سے متعلقہ تصاویر تلاش کرے گی۔ Pexels کے نتائج میں مخصوص شخص کی تصویر ملنے کی ضمانت نہیں۔</p>
+<form id="topicForm">
+<label>موضوع</label><input name="topic" placeholder="مثلاً Islamic یا Ronaldo" maxlength="100" required>
+<button type="submit">موضوع سے خودکار تصاویر</button>
+</form>
+<hr style="border-color:#283653;margin:22px 0">
+<h2>یا اپنی چھ تصاویر منتخب کریں</h2>
+<p class="muted">بالکل 6 تصاویر منتخب کریں۔ ویڈیو 1080×1920، 12 سیکنڈ اور MP4 ہوگی۔ فون پر فائل picker سے، کمپیوٹر پر فولڈر سے تصاویر منتخب کر سکتے ہیں۔</p>
+<form id="renderForm">
+<label>موضوع</label><select name="topic"><option value="islamic">Islamic</option><option value="ronaldo">Ronaldo / Football</option><option value="other">Other</option></select>
+<label>چھ تصاویر</label><input id="images" name="images" type="file" accept="image/jpeg,image/png,image/webp" multiple required>
+<button type="submit">ویڈیو بنائیں</button>
+</form>
+<div id="result" hidden>
+<p id="message" class="good"></p><video id="preview" controls playsinline></video>
+<a id="download" class="button" href="#">ویڈیو ڈاؤن لوڈ</a>
+<div class="grid" style="margin-top:16px">
+<form method="post" action="/upload">
+<h2>فوراً اپلوڈ</h2>
+<input type="hidden" name="media_id" id="mediaId1">
+<label>YouTube چینل</label><select name="channel_id" required>{% for c in channels %}<option value="{{ c['id'] }}">{{ c['label'] }}</option>{% endfor %}</select>
+<label>عنوان</label><input name="title" id="title1" maxlength="100" required>
+<label>تفصیل</label><textarea name="description" id="desc1" rows="3"></textarea>
+<label>Tags (comma separated)</label><input name="tags" id="tags1">
+<button type="submit" {% if not channels %}disabled{% endif %}>Upload now (Private)</button>
+<p class="muted">MVP میں ویڈیو پہلے private اپلوڈ ہوتی ہے۔</p>
+</form>
+<form method="post" action="/schedule">
+<h2>شیڈول اپلوڈ</h2>
+<input type="hidden" name="media_id" id="mediaId2">
+<label>YouTube چینل</label><select name="channel_id" required>{% for c in channels %}<option value="{{ c['id'] }}">{{ c['label'] }}</option>{% endfor %}</select>
+<label>عنوان</label><input name="title" id="title2" maxlength="100" required>
+<label>تفصیل</label><textarea name="description" id="desc2" rows="3"></textarea>
+<label>Tags (comma separated)</label><input name="tags" id="tags2">
+<label>مقامی تاریخ اور وقت</label><input type="datetime-local" name="publish_at" required>
+<button type="submit" {% if not channels %}disabled{% endif %}>Schedule upload</button>
+<p class="muted">مقررہ وقت پر API upload شروع ہوگا؛ یہ YouTube کا scheduled-publication فیچر نہیں، بلکہ سرور پر چلنے والا scheduler ہے۔</p>
+</form>
+</div></div>
+<div id="error" class="bad"></div>
+</section>
+
+<section class="card">
+<h2>3) اپلوڈ اور شیڈول ہسٹری</h2>
+<div style="overflow:auto"><table><thead><tr><th>عنوان</th><th>حالت</th><th>وقت</th><th>تفصیل</th></tr></thead><tbody>
+{% for j in jobs %}
+<tr><td>{{ j["title"] }}</td><td><span class="tag">{{ j["status"] }}</span></td><td>{{ (j["publish_at"] or j["created_at"])[:19] }}</td>
+<td>{% if j["youtube_video_id"] %}<a href="https://www.youtube.com/watch?v={{ j['youtube_video_id'] }}" target="_blank" rel="noopener">YouTube ویڈیو</a>{% endif %}
+{% if j["error"] %}<span class="bad">{{ j["error"][:180] }}</span>{% endif %}
+{% if j["status"] == "failed" %}<form method="post" action="/retry/{{ j['id'] }}"><button>دوبارہ کوشش</button></form>{% endif %}</td></tr>
+{% else %}<tr><td colspan="4">ابھی کوئی کام نہیں۔</td></tr>{% endfor %}
+</tbody></table></div>
+</section>
+<section class="card"><h2>ضروری نوٹ</h2><p class="muted">صرف ایسی تصاویر اور آڈیو استعمال کریں جن کے استعمال کی اجازت ہو۔ یہ ابتدائی MVP ہے؛ اسے عوامی multi-user سروس بنانے سے پہلے لاگ اِن، فی صارف ڈیٹا علیحدگی، HTTPS، بیک اپ اور سکیورٹی ٹیسٹنگ ضروری ہیں۔</p></section>
+</main>
+<script>
+async function handleRender(form, endpoint, validateFiles) {
+  const error = document.getElementById('error');
+  const result = document.getElementById('result');
+  error.textContent = '';
+  if (validateFiles) {
+    const files = document.getElementById('images').files;
+    if (files.length !== 6) { error.textContent = 'براہِ کرم بالکل 6 تصاویر منتخب کریں۔'; return; }
+  }
+  const button = form.querySelector('button');
+  button.disabled = true; button.textContent = 'تصاویر تلاش اور ویڈیو تیار ہو رہی ہے...';
+  try {
+    const fd = new FormData(form);
+    const response = await fetch(endpoint, {method:'POST', body:fd});
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'ویڈیو نہیں بن سکی۔');
+    result.hidden = false;
+    document.getElementById('message').textContent = data.message;
+    document.getElementById('preview').src = data.video_url;
+    document.getElementById('download').href = data.download_url;
+    document.getElementById('mediaId1').value = data.id;
+    document.getElementById('mediaId2').value = data.id;
+    ['title1','title2'].forEach(id => document.getElementById(id).value = data.title);
+    ['desc1','desc2'].forEach(id => document.getElementById(id).value = data.description);
+    ['tags1','tags2'].forEach(id => document.getElementById(id).value = data.tags.join(', '));
+    result.scrollIntoView({behavior:'smooth'});
+  } catch (err) { error.textContent = err.message; }
+  finally {
+    button.disabled = false;
+    button.textContent = validateFiles ? 'ویڈیو بنائیں' : 'موضوع سے خودکار تصاویر';
+  }
+}
+document.getElementById('renderForm').addEventListener('submit', (e) => {
+  e.preventDefault(); handleRender(e.currentTarget, '/render', true);
+});
+document.getElementById('topicForm').addEventListener('submit', (e) => {
+  e.preventDefault(); handleRender(e.currentTarget, '/render-topic', false);
+});
+</script>
+</body>
+</html>
